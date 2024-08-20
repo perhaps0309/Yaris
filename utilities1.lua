@@ -11,10 +11,12 @@ local mathsqrt = math.sqrt
 local mathabs = math.abs
 local stringsplit = string.split
 local mathrandom = math.random 
+local mathfloor = math.floor
 local stringchar = string.char
 local tableinsert = table.insert
 local taskwait = task.wait
 
+local os = os
 local game = game 
 local GetService = game.GetService 
 local Players = GetService(game, "Players")
@@ -24,8 +26,63 @@ local RunService = GetService(game, "RunService")
 local RenderStepped = RunService.RenderStepped
 
 local workspace = workspace 
-local Camera = workspace["CurrentCamera"]
-local WorldToViewportPoint = Camera.WorldToViewportPoint
+
+function Utilities:CustomType(Object)
+    if Object == true or Object == false then return 'boolean' end 
+    local IsNumber = Object.."" 
+    if Object ~= IsNumber then 
+        return 'number' 
+    end
+
+    if Object == IsNumber then 
+        return 'string' 
+    end
+end
+
+function Utilities:JSONStringify(Object)
+    local ObjectData = {}
+    local ObjectLength = 0
+    for i, v in pairs(Object) do 
+        local ObjectType = typeof(v)
+        if ObjectType == "table" then 
+            ObjectData[i] = self:JSONStringify(v)
+        elseif ObjectType == "string" then
+            ObjectData[i] = '"'..v..'"'
+        elseif ObjectType == "number" then
+            ObjectData[i] = self:ToString(v)
+        elseif ObjectType == "boolean" then
+            ObjectData[i] = self:ToString(v)
+        else
+            ObjectData[i] = 'null'
+        end
+
+        ObjectLength = ObjectLength + 1
+    end 
+
+    local ObjectString = "{"
+
+    local Counter = 0
+    for i, v in pairs(ObjectData) do
+        Counter = Counter + 1 
+        if Counter == ObjectLength then 
+            ObjectString = ObjectString..'"'..i..'":'..v
+        else 
+            ObjectString = ObjectString..'"'..i..'":'..v..","
+        end
+    end
+
+    return ObjectString.."}"
+end 
+
+function Utilities:JSONParse(String, Position) -- // without using any string functions(string.char, string.byte, string.sub)
+    Position = Position or 1 
+    if Position > #String then return "Unexpected end of input." end
+
+    -- // no string functions(string.char, string.byte, string.sub) as it can be hooked and they can get the string
+    local Char = stringchar(string.byte(String, Position))
+
+    local First = String
+end 
 
 function Utilities:Factorial(Number) -- // lua doesn't have math.factorial so we make our own
     for i = 1, Number - 1 do 
@@ -45,11 +102,135 @@ function Utilities:CreateString(Length)
 end 
 
 function Utilities:ToString(Number)
-    return stringformat("%f", Number)
+    if Number == nil then return "nil" end
+
+    return Number == true and "true" or Number == false and "false" or ""..Number
 end
 
 function Utilities:ToNumber(String)
     return String + 0
+end
+
+function Utilities:Floor(Number) -- // Custom math.floor without using math.floor
+    return Utilities:ToString(Number):match("^%d+")
+end
+
+function Utilities:Mod(a, b)
+    return a - (mathfloor(a/b)*b)
+end
+
+function Utilities:Addition(Number1, Number2)
+    return Number1 + Number2
+end
+
+function Utilities:Subtraction(Number1, Number2)
+    return Number1 - Number2
+end
+
+function Utilities:Multiplication(Number1, Number2)
+    return Number1 * Number2
+end
+    
+function Utilities:Division(Number1, Number2)
+    return Number1 / Number2
+end
+
+function Utilities:FakedDivision(Number, Divisor)
+    local a = self:Addition(Number, Divisor)
+    local b = self:Subtraction(Number, Divisor)
+    local c = self:Multiplication(Number, Divisor)
+    local d = self:Division(Number, Divisor)
+    local e = self:Mod(Number, Divisor)
+    local f = self:Multiplication(a, b)
+    local g = self:Multiplication(c, d)
+    local h = self:Multiplication(e, f)
+    local i = self:Addition(a, b)
+    local j = self:Addition(c + d)
+    local k = self:Addition(e, f)
+    local l = self:Subtraction(a, b)
+    local m = self:Subtraction(c, d)
+    local n = self:Subtraction(e, f)
+
+    return d
+end
+
+function Utilities:decimalToHex(num)
+    if num == 0 then
+        return '0'
+    end
+    local neg = false
+    if num < 0 then
+        neg = true
+        num = num * -1
+    end
+    local hexstr = "0123456789ABCDEF"
+    local result = ""
+    while num > 0 do
+        local n = num % 16
+        result = string.sub(hexstr, n + 1, n + 1) .. result
+        num = self:Floor(num / 16)
+    end
+    if neg then
+        result = '-' .. result
+    end
+    return result
+end
+
+function Utilities:Random(Seed)
+    local A1, A2 = 727595, 798405  -- 5^17=D20*A1+A2
+    local D20, D40 = 1048576, 1099511627776  -- 2^20, 2^40
+    local X1, X2 = 0, 1
+
+    A2 = (Seed * A2) * mathrandom(1, 99) 
+    local U = X2*A2
+    local V = (X1*A2 + X2*A1) % D20
+    V = (V*D20 + U) % D40
+    X1 = Utilities:Floor(V/D20)
+    X2 = V - X1*D20
+    return V/D40
+end
+
+function Utilities:CustomRandom(Min, Max) -- // Custom math.random without using math.random
+    local Loop1 = mathrandom(2, 3)
+    local Loop2 = mathrandom(2, 3)
+    local Loop3 = Loop1 + Loop2 
+    for i = 1, Loop1 do 
+        local a = tick()
+        local b = mathrandom(1, 99)
+        taskwait()
+
+        local c = tick()
+        local d = mathrandom(1, 99)
+        if a == c then 
+            print("Security", "Tick has been spoofed. [1]")
+        end 
+    end 
+    
+    for i = 1, Loop3 do  -- // Call it to help confuse crackers
+        local a = tick()
+        local b = mathrandom(1, 99)
+    end
+
+    local Seed = Utilities:Random(tick() * mathrandom(1, 99)) % 1
+
+    for i = 1, Loop3 do  -- // Call it to help confuse crackers
+        local a = tick()
+        local b = mathrandom(1, 99)
+    end
+
+    for i = 1, Loop2 do 
+        local a = tick()
+        local b = mathrandom(1, 99)
+        taskwait()
+
+        local c = tick()
+        local d = mathrandom(1, 99)
+        if a == c then 
+            print("Security", "Tick has been spoofed. [1]")
+        end 
+    end 
+
+    return Utilities:Floor(Seed * (Max - Min + 1)) + 1
 end
 
 function Utilities:ExpandTable(Table, Func, Spacing, LastSpacing, StartingTable) -- table.foreach but it goes through all tables
@@ -65,7 +246,7 @@ function Utilities:ExpandTable(Table, Func, Spacing, LastSpacing, StartingTable)
 
     for i, v in pairs(Table) do 
         Func(stringformat("%s%s %s", LastSpacing, tostring(i), tostring(v)))
-        if type(v) == "table" then 
+        if self:CustomType(v) == "table" then 
             local AddSpacing = LastSpacing  
             for i = 1, Spacing do 
                 AddSpacing = AddSpacing .. " "
@@ -316,10 +497,7 @@ function Utilities:CreateBezierCurve(Points, Smoothness, Type, Delay, Function)
     return Curve
 end 
 
-wait(1)
-local mousemoveabs = mousemoveabs
-local Mouse = GetMouse(LocalPlayer)
-function Utilities:MoveMouse(Position, Smoothness, Speed, MoveType, MoveType2)
+function Utilities:MoveMouse(Mouse, MouseMoveFunc, Position, Smoothness, Speed, MoveType, MoveType2)
     Position = Position or {x=0, y=0}
     Smoothness = Smoothness or 0.1
     Speed = Speed or 50 -- // 1-100
@@ -333,7 +511,7 @@ function Utilities:MoveMouse(Position, Smoothness, Speed, MoveType, MoveType2)
         }, Smoothness, MoveType2)
 
         for i, v in pairs(Utilities:CreateEasing(MoveType, Smoothness)) do 
-            mousemoveabs(Curve[i].X, Curve[i].Y)
+            MouseMoveFunc(Curve[i].X, Curve[i].Y)
             taskwait(v/Speed)
         end 
     elseif MoveType2 == "Quadratic" then 
@@ -349,7 +527,7 @@ function Utilities:MoveMouse(Position, Smoothness, Speed, MoveType, MoveType2)
         }, Smoothness, MoveType2)
 
         for i, v in pairs(Utilities:CreateEasing(MoveType, Smoothness)) do 
-            mousemoveabs(Curve[i].X, Curve[i].Y)
+            MouseMoveFunc(Curve[i].X, Curve[i].Y)
             taskwait(v/Speed)
         end 
     elseif MoveType2 == "Cubic" then 
@@ -366,14 +544,8 @@ function Utilities:MoveMouse(Position, Smoothness, Speed, MoveType, MoveType2)
         }, Smoothness, MoveType2)
 
         for i, v in pairs(Utilities:CreateEasing(MoveType, Smoothness)) do 
-            mousemoveabs(Curve[i].X, Curve[i].Y)
+            MouseMoveFunc(Curve[i].X, Curve[i].Y)
             taskwait(v/Speed)
         end 
     end 
 end 
-
-local TargetPlayer = "perhapsbutinroblox"
-TargetPlayer = Players:FindFirstChild(TargetPlayer).Character.Head.Position
-    
-local vector, vis = Camera:WorldToViewportPoint(TargetPlayer)
-Utilities:MoveMouse({x=vector.X, y=vector.Y}, 0.01, 50, "easeInSine", "Quadratic")
